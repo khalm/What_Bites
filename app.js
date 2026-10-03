@@ -82,6 +82,9 @@ const T = {
     buySkitt: 'Søk hos Skittfiske ↗', buyFinn: 'Brukt på Finn.no ↗', shopsNear: 'Fiskebutikker i nærheten', route: 'Veibeskrivelse ↗',
     shopsLoading: 'Ser etter butikker i nærheten…', noShops: 'Fant ingen fiskebutikker innen 25 km.', wormBuy: 'Fiskemark får du i fiskebutikker og på mange bensinstasjoner.',
     bestColors: 'Beste farger nå', favColors: 'Gode farger',
+    camStarting: 'Starter kamera…', camHint: 'Hold telefonen rett over boksen. Trykk 🔦 for lys.',
+    camNoTorch: 'Telefonen lar ikke appen styre lyset. Bruk lommelykt, eller «Velg bilde».',
+    torchOn: 'Lys på', torchOff: 'Lys av', camGallery: 'Velg bilde', camClose: 'Lukk kamera', camShoot: 'Ta bilde',
     flashNote: '📸 Bildet er tatt med blits — da ser agn ofte blankere og lysere ut enn de er. Sjekk fargene i lista under og rett dem om nødvendig.',
     dimNote: '🔦 Bildet er mørkt, så fargene kan være feil. Lys på boksen med lommelykt og ta et nytt bilde, eller rett fargene i lista.',
     nightShiny: '🌙 Blanke farger blinker dårlig i mørket — dette er bare det beste i boksen. Et svart, lilla eller selvlysende agn er bedre om natta.', typeLbl: 'Agntype', colorLbl: 'Farge',
@@ -165,6 +168,9 @@ const T = {
     buySkitt: 'Search Skittfiske ↗', buyFinn: 'Used on Finn.no ↗', shopsNear: 'Fishing shops nearby', route: 'Directions ↗',
     shopsLoading: 'Looking for shops nearby…', noShops: 'No fishing shops found within 25 km.', wormBuy: 'Worms are sold in fishing shops and many petrol stations.',
     bestColors: 'Best colours now', favColors: 'Good colours',
+    camStarting: 'Starting camera…', camHint: 'Hold the phone straight above the box. Tap 🔦 for light.',
+    camNoTorch: "This phone doesn't let the app control the light. Use a torch, or \"Choose photo\".",
+    torchOn: 'Light on', torchOff: 'Light off', camGallery: 'Choose photo', camClose: 'Close camera', camShoot: 'Take photo',
     flashNote: '📸 The photo was taken with flash — lures often look shinier and lighter than they are. Check the colours in the list below and correct them if needed.',
     dimNote: '🔦 The photo is dark, so the colours may be wrong. Light the box with a torch and take a new photo, or correct the colours in the list.',
     nightShiny: '🌙 Shiny colours flash poorly in the dark — this is just the best in your box. A black, purple or glow lure is better at night.', typeLbl: 'Bait type', colorLbl: 'Colour',
@@ -728,12 +734,10 @@ function scaledUrl(img, max = 1024) {
 }
 
 /* ---------- step 3: bait box ---------- */
-$('baitInput').onchange = async (e) => {
-  const file = e.target.files[0]; if (!file) return;
+/* Analyse a bait-box photo (from the in-app camera or a file) */
+async function processBaitPhoto(img, exif = null, meta = {}) {
   const out = $('baitResult');
   try {
-    const img = await loadImage(file);
-    const exif = await Vision.readExif(file);
     const meanV = Scene.regionStats(Vision.grid(img), 0, 0, 1, 1).val;
     drawBaits(img, []);
     const firstTime = !modelOk();
@@ -749,15 +753,105 @@ $('baitInput').onchange = async (e) => {
     $('modelNote').textContent = t('modelReady');
     $('modelBanner').classList.add('hidden');
     if (!dets.length) throw new Error(t('noBaits'));
-    state.bait = { img, baits: dets.map((d) => ({ ...d, ...Vision.colorOf(img, d.box) })), flash: !!exif?.flash, dim: meanV < 0.18 };
+    state.bait = { img, baits: dets.map((d) => ({ ...d, ...Vision.colorOf(img, d.box) })), flash: !!exif?.flash && !meta.torch, dim: meanV < 0.18 && !meta.torch };
     // The camera's light reading from the bait photo also tells if it's dark out (not with flash — that changes exposure)
     const ev = Scene.evFromExif(exif);
     if (ev != null && spot.ev == null && !exif?.flash) { spot.ev = ev; updateSpot(); }
     renderBaitResult();
     $('baitStage').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (err) { state.bait = null; showError(out, err.message); }
-  finally { busy(false); e.target.value = ''; }
+  finally { busy(false); }
+}
+
+// Gallery / system camera fallback
+$('baitInput').onchange = async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  e.target.value = '';
+  closeCamera();
+  const img = await loadImage(file);
+  processBaitPhoto(img, await Vision.readExif(file));
 };
+
+/* ---------- in-app camera with steady light (torch) ---------- */
+const cam = { stream: null, track: null, torch: false, torchOk: false, autoTimer: null };
+
+async function openCamera() {
+  if (!navigator.mediaDevices?.getUserMedia) { $('baitInput').click(); return; } // no in-app camera → system camera
+  $('camera').classList.remove('hidden');
+  $('camHint').textContent = t('camStarting');
+  try {
+    cam.stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false,
+    });
+    cam.track = cam.stream.getVideoTracks()[0];
+    $('camVideo').srcObject = cam.stream;
+    await $('camVideo').play();
+    const caps = cam.track.getCapabilities ? cam.track.getCapabilities() : {};
+    cam.torchOk = !!caps.torch;
+    $('camTorch').classList.toggle('hidden', !cam.torchOk);
+    $('camHint').textContent = cam.torchOk ? t('camHint') : t('camNoTorch');
+    // Dark out (night/dusk) → light on straight away; otherwise check the picture after a moment
+    if (cam.torchOk && ['night', 'low'].includes(state.env.light)) setTorch(true);
+    else if (cam.torchOk) cam.autoTimer = setTimeout(() => { if (cam.stream && !cam.torch && previewBrightness() < 0.2) setTorch(true); }, 900);
+  } catch (err) {
+    console.warn('camera failed', err);
+    closeCamera();
+    $('baitInput').click(); // permission denied or no camera → system camera
+  }
+}
+
+async function setTorch(on) {
+  if (!cam.track || !cam.torchOk) return;
+  try {
+    await cam.track.applyConstraints({ advanced: [{ torch: on }] });
+    cam.torch = on;
+  } catch { cam.torch = false; }
+  $('camTorch').classList.toggle('on', cam.torch);
+  $('camTorch').setAttribute('aria-pressed', String(cam.torch));
+  $('camTorchLbl').textContent = cam.torch ? t('torchOff') : t('torchOn');
+}
+
+function previewBrightness() {
+  const v = $('camVideo');
+  if (!v.videoWidth) return 1;
+  const c = document.createElement('canvas'); c.width = 32; c.height = 32;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(v, 0, 0, 32, 32);
+  const d = ctx.getImageData(0, 0, 32, 32).data;
+  let sum = 0; for (let i = 0; i < d.length; i += 4) sum += Math.max(d[i], d[i + 1], d[i + 2]);
+  return sum / (d.length / 4) / 255;
+}
+
+async function snapPhoto() {
+  const v = $('camVideo');
+  if (!v.videoWidth) return;
+  const c = document.createElement('canvas');
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v, 0, 0);
+  const torch = cam.torch;
+  const img = new Image();
+  img.src = c.toDataURL('image/jpeg', 0.92);
+  await img.decode();
+  closeCamera();
+  processBaitPhoto(img, null, { torch });
+}
+
+function closeCamera() {
+  clearTimeout(cam.autoTimer);
+  if (cam.track && cam.torch) { try { cam.track.applyConstraints({ advanced: [{ torch: false }] }); } catch { /* ignore */ } }
+  if (cam.stream) cam.stream.getTracks().forEach((tr) => tr.stop());
+  cam.stream = null; cam.track = null; cam.torch = false;
+  $('camVideo').srcObject = null;
+  $('camera').classList.add('hidden');
+  $('camTorch').classList.remove('on');
+}
+
+$('baitBtn').onclick = openCamera;
+$('camTorch').onclick = () => setTorch(!cam.torch);
+$('camShoot').onclick = snapPhoto;
+$('camClose').onclick = closeCamera;
+$('camGallery').onclick = () => $('baitInput').click();
+document.addEventListener('visibilitychange', () => { if (document.hidden && cam.stream) closeCamera(); });
 
 function rerank() { if (state.bait) renderBaitResult(); }
 

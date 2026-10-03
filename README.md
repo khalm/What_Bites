@@ -14,6 +14,7 @@ Hva biter? Pek kameraet mot vannet og agnboksen din — WhatBites viser hvilket 
    - 💧 **Sikt** — fra et nærbilde rett ned i vannet (unngår speilinger); mye regn siste døgn tas med
    Mangler noe, forteller appen hvordan du tar et bedre bilde. Du kan alltid rette selv.
 3. **Vis agnboksen** — ta bilde av boksen; appen markerer det beste agnet i bildet og rangerer resten.
+   Appen har eget kamera med 🔦-knapp for jevnt lys (ikke blits). I mørket slås lyset på automatisk.
    Mangler boksen noe som passer klart bedre, vises et lite tips «Til neste gang» med søk hos [Skittfiske](https://www.skittfiske.no), brukt på Finn.no og fiskebutikker i nærheten.
 
 Norsk er standard, trykk **EN/NO** øverst for å bytte språk.
