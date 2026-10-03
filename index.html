@@ -9,10 +9,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
   <title>WhatBites</title>
-  <link rel="manifest" href="manifest.json?v=19">
+  <link rel="manifest" href="manifest.json?v=20">
   <link rel="icon" href="icon.svg?v=8" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon-192.png?v=8">
-  <link rel="stylesheet" href="style.css?v=19">
+  <link rel="stylesheet" href="style.css?v=20">
 </head>
 <body>
   <div id="splash" aria-hidden="true">
@@ -25,7 +25,7 @@
   </div>
   <script>
     // App version — shown on the splash and at the bottom of the front page. Bump on every release.
-    window.WB_VERSION = '1.19';
+    window.WB_VERSION = '1.20';
     document.getElementById('splashVer').textContent = 'v' + window.WB_VERSION;
     // Splash: shown ~1500 ms, then fades out. Language tagline set before first paint.
     if ((localStorage.getItem('wb_ui') || 'no') === 'en') document.getElementById('splashTag').textContent = 'What bites today?';
@@ -38,6 +38,8 @@
   <button id="langBtn" class="lang-float" aria-label="Language"><span class="flag" id="langFlag">🇬🇧</span><span id="langCode">EN</span></button>
 
   <main>
+    <button id="installTop" class="btn primary install-top hidden" type="button" data-i18n="installBtn"></button>
+    <p id="iosInstall" class="note hidden"></p>
     <section class="card banner hidden" id="modelBanner">
       <p><b data-i18n="bannerTitle"></b><br><span class="muted" id="bannerText"></span></p>
       <div class="bar hidden" id="bannerBar"><div id="bannerFill"></div></div>
@@ -133,10 +135,10 @@
     <button class="btn ghost" id="sheetClose" data-i18n="close"></button>
   </dialog>
 
-  <script src="engine.js?v=19"></script>
-  <script src="scene.js?v=19"></script>
-  <script src="trip.js?v=19"></script>
-  <script src="vision.js?v=19"></script>
-  <script src="app.js?v=19"></script>
+  <script src="engine.js?v=20"></script>
+  <script src="scene.js?v=20"></script>
+  <script src="trip.js?v=20"></script>
+  <script src="vision.js?v=20"></script>
+  <script src="app.js?v=20"></script>
 </body>
 </html>

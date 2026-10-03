@@ -8,6 +8,8 @@ const $ = (id) => document.getElementById(id);
 /* ---------- language ---------- */
 const T = {
   no: {
+    installBtn: '📲 Installer WhatBites på telefonen',
+    iosInstall: '📲 Installer på iPhone: trykk Del-knappen nederst i Safari og velg «Legg til på Hjem-skjerm».',
     savedOffline: '📦 Lagret for bruk uten nett.',
     usingSaved: (place, age) => `📴 Uten nett — bruker data lagret ${place ? 'for ' + place + ' ' : ''}${age}.`,
     offlineNothing: '📴 Uten nett, og ingen lagrede data her. Appen bruker GPS, solhøyde og bildene dine — vær og fiskearter mangler.',
@@ -94,6 +96,8 @@ const T = {
     noInfo: 'Fant ingen artikkel om denne arten.', typicalSize: 'Typisk agn',
   },
   en: {
+    installBtn: '📲 Install WhatBites on your phone',
+    iosInstall: '📲 Install on iPhone: tap the Share button at the bottom of Safari and choose "Add to Home Screen".',
     savedOffline: '📦 Saved for use without signal.',
     usingSaved: (place, age) => `📴 No signal — using data saved ${place ? 'for ' + place + ' ' : ''}${age}.`,
     offlineNothing: '📴 No signal and no saved data here. The app uses GPS, sun height and your photos — weather and fish species are missing.',
@@ -204,7 +208,7 @@ function applyLang() {
   $('modelNote').textContent = modelOk() ? t('modelReady') : t('modelNote');
   renderBanner();
   if (state.lat !== null) { $('locBtn').textContent = t('refreshLoc'); renderConditions(); loadWikiNames(); }
-  renderSegs(); renderSpot(); renderTrips(); renderNet();
+  renderSegs(); renderSpot(); renderTrips(); renderNet(); renderIosInstall();
   $('planQ').placeholder = t('planPh');
   if (state.bait) renderBaitResult();
 }
@@ -414,6 +418,32 @@ async function saveTrip(r) {
   rememberSpot({ lat, lon, name, place: r.display_name.split(',').slice(0, 2).join(','), fish, gps, raw: w.status === 'fulfilled' ? w.value : null });
   prefetchSpecies(fish);
   $('planStatus').textContent = t('tripSaved')(name, fish.length, gps ? t('opts').water[gps.type] : '');
+}
+
+/* ---------- install button (same as in Lurt?) ---------- */
+let installEvt = null;
+const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault(); installEvt = e;
+  if (!standalone()) $('installTop').classList.remove('hidden');
+});
+window.addEventListener('appinstalled', () => { installEvt = null; $('installTop').classList.add('hidden'); });
+$('installTop').addEventListener('click', async () => {
+  if (!installEvt) return;
+  installEvt.prompt();
+  await installEvt.userChoice;
+  installEvt = null;
+  $('installTop').classList.add('hidden');
+});
+// iPhone/iPad Safari has no install prompt: show how to add it to the home screen (once per session)
+function renderIosInstall() {
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const show = ios && !standalone() && !sessionStorage.getItem('wb_ios_hide');
+  $('iosInstall').classList.toggle('hidden', !show);
+  if (show) {
+    $('iosInstall').innerHTML = `${esc(t('iosInstall'))} <button type="button" class="link" id="iosHide">${esc(t('close'))}</button>`;
+    $('iosHide').onclick = () => { sessionStorage.setItem('wb_ios_hide', '1'); renderIosInstall(); };
+  }
 }
 
 /* ---------- signal indicator ---------- */
