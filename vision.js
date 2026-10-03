@@ -265,8 +265,9 @@
           };
           const ifd0 = readIfd(u32(4));
           const ex = ifd0[0x8769] ? readIfd(ifd0[0x8769]) : {};
-          const res = { t: ex[0x829A] || null, N: ex[0x829D] || null, iso: ex[0x8827] || ex[0x8833] || null };
-          return res.t && res.iso ? res : null;
+          const res = { t: ex[0x829A] || null, N: ex[0x829D] || null, iso: ex[0x8827] || ex[0x8833] || null,
+            flash: ex[0x9209] != null ? (ex[0x9209] & 1) === 1 : null };
+          return res.t && res.iso ? res : (res.flash != null ? res : null);
         }
         if ((marker & 0xFF00) !== 0xFF00) break;
         off += 2 + len;

@@ -293,6 +293,10 @@
         else if (sc) light.value = 'overcast';
         if (sc) light.src.push(sky.src[0]);
       }
+      // The photo itself: too dark to see anything → it's night (or close to it)
+      const darkPhoto = photos.some((p) => p.tooDark);
+      if (!light.value && darkPhoto) { light.value = 'night'; light.src.push('photo'); }
+      else if (darkPhoto && (light.value === 'sun' || light.value === 'overcast') && se == null) { light.value = 'low'; light.src.push('photo'); }
       if (evLight) {
         const order = ['night', 'low', 'overcast', 'sun'];
         if (!light.value) { light.value = evLight; light.src.push('camera'); }

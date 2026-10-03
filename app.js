@@ -82,6 +82,8 @@ const T = {
     buySkitt: 'Søk hos Skittfiske ↗', buyFinn: 'Brukt på Finn.no ↗', shopsNear: 'Fiskebutikker i nærheten', route: 'Veibeskrivelse ↗',
     shopsLoading: 'Ser etter butikker i nærheten…', noShops: 'Fant ingen fiskebutikker innen 25 km.', wormBuy: 'Fiskemark får du i fiskebutikker og på mange bensinstasjoner.',
     bestColors: 'Beste farger nå', favColors: 'Gode farger',
+    flashNote: '📸 Bildet er tatt med blits — da ser agn ofte blankere og lysere ut enn de er. Sjekk fargene i lista under og rett dem om nødvendig.',
+    dimNote: '🔦 Bildet er mørkt, så fargene kan være feil. Lys på boksen med lommelykt og ta et nytt bilde, eller rett fargene i lista.',
     nightShiny: '🌙 Blanke farger blinker dårlig i mørket — dette er bare det beste i boksen. Et svart, lilla eller selvlysende agn er bedre om natta.', typeLbl: 'Agntype', colorLbl: 'Farge',
     modelFail: 'Kunne ikke laste AI-modellen. Sjekk nettet og prøv igjen.',
     disclaimer: 'Agnvalg er forslag — sjekk lokale fiskeregler og fredningstider.',
@@ -163,6 +165,8 @@ const T = {
     buySkitt: 'Search Skittfiske ↗', buyFinn: 'Used on Finn.no ↗', shopsNear: 'Fishing shops nearby', route: 'Directions ↗',
     shopsLoading: 'Looking for shops nearby…', noShops: 'No fishing shops found within 25 km.', wormBuy: 'Worms are sold in fishing shops and many petrol stations.',
     bestColors: 'Best colours now', favColors: 'Good colours',
+    flashNote: '📸 The photo was taken with flash — lures often look shinier and lighter than they are. Check the colours in the list below and correct them if needed.',
+    dimNote: '🔦 The photo is dark, so the colours may be wrong. Light the box with a torch and take a new photo, or correct the colours in the list.',
     nightShiny: '🌙 Shiny colours flash poorly in the dark — this is just the best in your box. A black, purple or glow lure is better at night.', typeLbl: 'Bait type', colorLbl: 'Colour',
     modelFail: "Couldn't load the AI model. Check your connection and try again.",
     disclaimer: 'Bait picks are suggestions — check local fishing rules and seasons.',
@@ -729,6 +733,8 @@ $('baitInput').onchange = async (e) => {
   const out = $('baitResult');
   try {
     const img = await loadImage(file);
+    const exif = await Vision.readExif(file);
+    const meanV = Scene.regionStats(Vision.grid(img), 0, 0, 1, 1).val;
     drawBaits(img, []);
     const firstTime = !modelOk();
     busy(true, firstTime ? t('downloading')(0, 155) : t('detecting'), firstTime ? 0 : null);
@@ -743,7 +749,10 @@ $('baitInput').onchange = async (e) => {
     $('modelNote').textContent = t('modelReady');
     $('modelBanner').classList.add('hidden');
     if (!dets.length) throw new Error(t('noBaits'));
-    state.bait = { img, baits: dets.map((d) => ({ ...d, ...Vision.colorOf(img, d.box) })) };
+    state.bait = { img, baits: dets.map((d) => ({ ...d, ...Vision.colorOf(img, d.box) })), flash: !!exif?.flash, dim: meanV < 0.18 };
+    // The camera's light reading from the bait photo also tells if it's dark out (not with flash — that changes exposure)
+    const ev = Scene.evFromExif(exif);
+    if (ev != null && spot.ev == null && !exif?.flash) { spot.ev = ev; updateSpot(); }
     renderBaitResult();
     $('baitStage').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (err) { state.bait = null; showError(out, err.message); }
@@ -831,6 +840,7 @@ function renderBaitResult() {
   out.innerHTML = `<h4>✅ ${t('use')} #${best.id}: ${esc(name(best))}</h4>
     <p>${esc(best.why.join(' · ') || '')}</p>
     ${state.env.light === 'night' && ['silver', 'natural', 'blue', 'gold'].includes(best.color) ? `<p class="note">${t('nightShiny')}</p>` : ''}
+    ${state.bait.flash ? `<p class="note">${t('flashNote')}</p>` : state.bait.dim ? `<p class="note">${t('dimNote')}</p>` : ''}
     <p><b>${t('target')}:</b> ${state.preferred.length ? '🎯 ' : ''}${esc(targets)}<br>
     ${res.size ? `<b>${t('size')}:</b> ${esc(res.size)}<br>` : ''}
     <b>${t('how')}:</b> ${esc(res.tip)}</p>

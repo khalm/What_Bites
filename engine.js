@@ -36,7 +36,7 @@
   const C = (clear, stained, murky, sun, overcast, low, night, deep, sea) => ({ clear, stained, murky, sun, overcast, low, night, deep, sea });
   const COLOR_FIT = {
     //                clear stained murky  sun  overc  dusk  night  deep   sea
-    silver:     C( 0.8,  0.2, -0.2,  0.9, -0.3, -0.2, -0.6,  0.2,  0.5),
+    silver:     C( 0.8,  0.2, -0.2,  0.9, -0.3, -0.2, -0.9,  0.2,  0.5),
     gold:       C( 0.1,  0.8,  0.5,  0.3,  0.8,  0.5, -0.2,  0.0,  0.0),
     copper:     C(-0.1,  0.9,  0.4,  0.0,  0.7,  0.4, -0.3, -0.2,  0.1),
     white:      C( 0.3,  0.3,  0.6,  0.4,  0.3,  0.5,  0.3,  0.3,  0.4),
@@ -49,7 +49,7 @@
     pink:       C(-0.1,  0.3,  0.5,  0.0,  0.3,  0.2, -0.3, -0.3,  0.3),
     purple:     C( 0.0,  0.1,  0.3, -0.2,  0.6,  0.4,  0.7,  0.1,  0.0),
     black:      C( 0.0,  0.2,  0.5, -0.4,  0.8,  0.6,  1.0,  0.0,  0.0),
-    natural:    C( 0.9,  0.0, -0.6,  0.6, -0.2, -0.4, -0.6,  0.0,  0.1),
+    natural:    C( 0.9,  0.0, -0.6,  0.6, -0.2, -0.4, -0.7,  0.0,  0.1),
     glow:       C(-0.6,  0.0,  0.4, -0.8, -0.2,  0.4,  1.0,  0.6,  0.3),
   };
   // Why a colour is good, per condition (shown to the user)
@@ -268,13 +268,15 @@
     const c2 = b.color2 ? (LEGACY[b.color2] || b.color2) : null;
     let fit = colorFit(c1, env, deep);
     if (c2 && c2 !== c1) fit = 0.7 * fit + 0.3 * Math.max(fit, colorFit(c2, env, deep)) + 0.05; // contrast helps a little
-    // Fish are less picky on grey days → colour counts a bit less
-    let points = fit * (env.light === 'overcast' ? 18 : 22);
+    // Colour weight: at night silhouette/glow decides a lot; on grey days fish are less picky
+    const night = env.light === 'night';
+    let points = fit * (night ? 34 : env.light === 'overcast' ? 18 : 22);
     // species favourites
     let favWho = null;
     for (const t of targets) {
       const fav = FAV_COLORS[t.key] || [];
-      if (fav.includes(c1) || (c2 && fav.includes(c2))) { points += 6 * t.w + 1; if (!favWho || t.w > favWho.w) favWho = t; }
+      // A favourite colour only helps if it can actually be seen in these conditions (no silver flash at night)
+      if ((fav.includes(c1) || (c2 && fav.includes(c2))) && fit > -0.1) { points += 6 * t.w + 1; if (!favWho || t.w > favWho.w) favWho = t; }
     }
     // pick the clearest reason
     let why = '';
