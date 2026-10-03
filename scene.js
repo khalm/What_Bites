@@ -279,6 +279,12 @@
         if (se < -6) light.value = 'night';
         else if (se < 6) light.value = 'low';
         light.src.push('sun');
+      } else if (inp.weather && inp.weather.isDay === false) {
+        // No position, but the forecast knows it's dark
+        light.value = 'night'; light.src.push('weather');
+      } else if (inp.hour != null && (inp.hour >= 23 || inp.hour < 4)) {
+        // Nothing else to go on: late night by the clock
+        light.value = 'night'; light.src.push('clock');
       }
       if (!light.value) {
         const sc = sky.value;

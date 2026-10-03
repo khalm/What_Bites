@@ -32,7 +32,7 @@ const T = {
     ovBtn: '📷 Oversiktsbilde (vann + himmel)', cuBtn: '📷 Nærbilde rett ned i vannet',
     ck: { sky: 'Skydekke', light: 'Lys', water: 'Vanntype', clarity: 'Sikt i vannet' },
     skyVals: { clear: 'Klart', partly: 'Delvis skyet', overcast: 'Overskyet', sunset: 'Solnedgang', dark: 'Mørk himmel' },
-    src: { photo: 'bilde', weather: 'værvarsel', gps: 'kart', sun: 'solhøyde', camera: 'kameraets lysmåler', user: 'valgt av deg' },
+    src: { photo: 'bilde', weather: 'værvarsel', gps: 'kart', sun: 'solhøyde', camera: 'kameraets lysmåler', user: 'valgt av deg', clock: 'klokka' },
     missing: 'mangler', within: { near: 'innen 200 m', km: 'innen 1 km', plan: 'planlagt tur' },
     ask: {
       start: 'Ta et oversiktsbilde: stå ved vannet og hold telefonen slik at horisonten er midt i bildet — litt himmel øverst og vann nederst.',
@@ -81,7 +81,8 @@ const T = {
     buyTitle: 'Til neste gang', buyIntro: '',
     buySkitt: 'Søk hos Skittfiske ↗', buyFinn: 'Brukt på Finn.no ↗', shopsNear: 'Fiskebutikker i nærheten', route: 'Veibeskrivelse ↗',
     shopsLoading: 'Ser etter butikker i nærheten…', noShops: 'Fant ingen fiskebutikker innen 25 km.', wormBuy: 'Fiskemark får du i fiskebutikker og på mange bensinstasjoner.',
-    bestColors: 'Beste farger nå', favColors: 'Gode farger', typeLbl: 'Agntype', colorLbl: 'Farge',
+    bestColors: 'Beste farger nå', favColors: 'Gode farger',
+    nightShiny: '🌙 Blanke farger blinker dårlig i mørket — dette er bare det beste i boksen. Et svart, lilla eller selvlysende agn er bedre om natta.', typeLbl: 'Agntype', colorLbl: 'Farge',
     modelFail: 'Kunne ikke laste AI-modellen. Sjekk nettet og prøv igjen.',
     disclaimer: 'Agnvalg er forslag — sjekk lokale fiskeregler og fredningstider.',
     pickOn: '🎯 Jeg fisker etter denne', pickOff: '✖ Fjern fra dagens arter', readWiki: 'Les mer på Wikipedia ↗', close: 'Lukk',
@@ -112,7 +113,7 @@ const T = {
     ovBtn: '📷 Overview photo (water + sky)', cuBtn: '📷 Close-up straight down into the water',
     ck: { sky: 'Cloud cover', light: 'Light', water: 'Water type', clarity: 'Water clarity' },
     skyVals: { clear: 'Clear', partly: 'Partly cloudy', overcast: 'Overcast', sunset: 'Sunset', dark: 'Dark sky' },
-    src: { photo: 'photo', weather: 'forecast', gps: 'map', sun: 'sun height', camera: "camera's light meter", user: 'chosen by you' },
+    src: { photo: 'photo', weather: 'forecast', gps: 'map', sun: 'sun height', camera: "camera's light meter", user: 'chosen by you', clock: 'clock' },
     missing: 'missing', within: { near: 'within 200 m', km: 'within 1 km', plan: 'planned trip' },
     ask: {
       start: 'Take an overview photo: stand by the water and hold the phone so the horizon is in the middle — some sky at the top, water at the bottom.',
@@ -161,7 +162,8 @@ const T = {
     buyTitle: 'For next time', buyIntro: '',
     buySkitt: 'Search Skittfiske ↗', buyFinn: 'Used on Finn.no ↗', shopsNear: 'Fishing shops nearby', route: 'Directions ↗',
     shopsLoading: 'Looking for shops nearby…', noShops: 'No fishing shops found within 25 km.', wormBuy: 'Worms are sold in fishing shops and many petrol stations.',
-    bestColors: 'Best colours now', favColors: 'Good colours', typeLbl: 'Bait type', colorLbl: 'Colour',
+    bestColors: 'Best colours now', favColors: 'Good colours',
+    nightShiny: '🌙 Shiny colours flash poorly in the dark — this is just the best in your box. A black, purple or glow lure is better at night.', typeLbl: 'Bait type', colorLbl: 'Colour',
     modelFail: "Couldn't load the AI model. Check your connection and try again.",
     disclaimer: 'Bait picks are suggestions — check local fishing rules and seasons.',
     pickOn: "🎯 I'm fishing for this", pickOff: "✖ Remove from today's species", readWiki: 'Read more on Wikipedia ↗', close: 'Close',
@@ -612,11 +614,13 @@ function userOverrides() {
 }
 
 function updateSpot() {
-  const sunElev = state.lat !== null ? Scene.sunElevation(state.lat, state.lon) : null;
+  // Sun height needs a position: use the current one, or else the last saved place (close enough for sun height)
+  const pos = state.lat !== null ? { lat: state.lat, lon: state.lon } : loadSpots()[0] || null;
+  const sunElev = pos ? Scene.sunElevation(pos.lat, pos.lon) : null;
   const d = Scene.decide({
     photos: spot.photos, user: userOverrides(), skipSky: spot.skipSky, gps: spot.gps,
-    weather: state.weather ? { cloud: state.weather.cloud, rain24: state.weather.rain24 } : null,
-    sunElev, ev: spot.ev,
+    weather: state.weather ? { cloud: state.weather.cloud, rain24: state.weather.rain24, isDay: state.weather.isDay } : null,
+    sunElev, ev: spot.ev, hour: new Date().getHours(),
   });
   spot.decision = d;
   for (const k of ['water', 'clarity', 'light']) if (!state.envSetByUser[k]) state.env[k] = d.env[k];
@@ -826,6 +830,7 @@ function renderBaitResult() {
   out.classList.remove('hidden'); out.classList.add('pick');
   out.innerHTML = `<h4>✅ ${t('use')} #${best.id}: ${esc(name(best))}</h4>
     <p>${esc(best.why.join(' · ') || '')}</p>
+    ${state.env.light === 'night' && ['silver', 'natural', 'blue', 'gold'].includes(best.color) ? `<p class="note">${t('nightShiny')}</p>` : ''}
     <p><b>${t('target')}:</b> ${state.preferred.length ? '🎯 ' : ''}${esc(targets)}<br>
     ${res.size ? `<b>${t('size')}:</b> ${esc(res.size)}<br>` : ''}
     <b>${t('how')}:</b> ${esc(res.tip)}</p>
@@ -881,6 +886,7 @@ function drawBaits(img, baits, best) {
 /* ---------- start ---------- */
 loadWikiCacheFromStorage();
 applyLang();
+$('appVersion').textContent = `WhatBites v${window.WB_VERSION || ''}`;
 if (navigator.storage?.persist) navigator.storage.persist().catch(() => {}); // ask the phone not to delete the saved model/data
 // Once per app version, while online: load the AI model in the background so the library and its
 // WebAssembly files get stored for offline use (the model itself is already on the phone).

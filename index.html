@@ -9,10 +9,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
   <title>WhatBites</title>
-  <link rel="manifest" href="manifest.json?v=16">
+  <link rel="manifest" href="manifest.json?v=17">
   <link rel="icon" href="icon.svg?v=8" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon-192.png?v=8">
-  <link rel="stylesheet" href="style.css?v=15">
+  <link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
   <div id="splash" aria-hidden="true">
@@ -20,9 +20,13 @@
       <img src="icon.svg?v=8" alt="" class="splash-icon">
       <div class="splash-title">WhatBites</div>
       <div class="splash-tag" id="splashTag">Hva biter i dag?</div>
+      <div class="splash-ver" id="splashVer"></div>
     </div>
   </div>
   <script>
+    // App version — shown on the splash and at the bottom of the front page. Bump on every release.
+    window.WB_VERSION = '1.17';
+    document.getElementById('splashVer').textContent = 'v' + window.WB_VERSION;
     // Splash: shown ~1500 ms, then fades out. Language tagline set before first paint.
     if ((localStorage.getItem('wb_ui') || 'no') === 'en') document.getElementById('splashTag').textContent = 'What bites today?';
     setTimeout(function () {
@@ -101,6 +105,7 @@
     </section>
 
     <p class="tiny muted center" data-i18n="disclaimer"></p>
+    <p class="tiny muted center version" id="appVersion"></p>
   </main>
 
   <div id="busy" class="busy hidden"><img src="icon.svg?v=8" alt="" class="busy-icon"><p id="busyText"></p>
@@ -117,10 +122,10 @@
     <button class="btn ghost" id="sheetClose" data-i18n="close"></button>
   </dialog>
 
-  <script src="engine.js?v=15"></script>
-  <script src="scene.js?v=15"></script>
-  <script src="trip.js?v=15"></script>
-  <script src="vision.js?v=15"></script>
-  <script src="app.js?v=15"></script>
+  <script src="engine.js?v=17"></script>
+  <script src="scene.js?v=17"></script>
+  <script src="trip.js?v=17"></script>
+  <script src="vision.js?v=17"></script>
+  <script src="app.js?v=17"></script>
 </body>
 </html>

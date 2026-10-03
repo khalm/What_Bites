@@ -5,7 +5,7 @@
  * - The AI model itself is stored by Transformers.js in its own cache
  * - Live data (weather, map, fish records) goes to the network; the app saves its own copy for offline use
  */
-const VERSION = 'v15';
+const VERSION = 'v17';
 const APP = `whatbites-app-${VERSION}`;
 const CDN = 'whatbites-cdn-v1';
 const IMG = 'whatbites-img-v1';
